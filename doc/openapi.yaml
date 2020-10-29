@@ -1,0 +1,54 @@
+openapi: 3.0.3
+info:
+  title: Koa.js sample
+  description: "WIP"
+  version: 0.0.1
+  contact:
+    name: https://github.com/wn-seko/koa-sample/
+    url: https://github.com/wn-seko/koa-sample/
+servers:
+  - url: https://example.com
+    description: Development
+tags:
+- name: Todo
+paths:
+  /todos:
+    post:
+      tags:
+        - Todo
+      summary: Todo作成
+      parameters: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              properties:
+                file:
+                  type: string
+                  description: file to upload
+                  format: binary
+      responses:
+        405:
+          description: Invalid input
+          content: {}
+  /documents:
+    get:
+      tags:
+        - Todo
+      summary: Todoの取得
+      responses:
+        200:
+          description: OK
+          content: {}
+components:
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        type:
+          type: string
+        message:
+          type: string

@@ -1,0 +1,94 @@
+version: 2.1
+
+executors:
+  default_env:
+    docker:
+      - image: circleci/node:14.5.0
+    working_directory: ~/workspace
+
+commands:
+  swagger-export:
+    steps:
+      - run:
+          name: Export swagger-ui
+          command: |
+            docker create --name swagger-container swaggerapi/swagger-ui
+            docker cp swagger-container:/usr/share/nginx/html swagger-ui
+            docker rm swagger-container
+            export DEFAULT_URL='https:\/\/petstore.swagger.io\/v2\/swagger.json'
+            export DOCUMENT_URL='openapi.yaml'
+            sed -i -e "s/$DEFAULT_URL/$DOCUMENT_URL/g" swagger-ui/index.html
+            cp doc/openapi.yaml swagger-ui/
+      - store_artifacts:
+          path: swagger-ui
+      - run:
+          name: Notify Github
+          command: npx moxci swagger-ui/index.html
+
+jobs:
+  swagger-ui:
+    executor:
+      name: default_env
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - swagger-export
+  install:
+    executor:
+      name: default_env
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - restore_cache:
+          keys:
+            - v1-node_modules-{{ .Branch }}-{{ checksum "yarn.lock" }}
+            - v1-node_modules-
+      - run:
+          name: Install dependencies
+          command: yarn
+      - save_cache:
+          key: v1-node_modules-{{ .Branch }}-{{ checksum "yarn.lock" }}
+          paths:
+            - ~/workspace/node_modules
+  test:
+    executor:
+      name: default_env
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - restore_cache:
+          keys:
+            - v1-node_modules-{{ .Branch }}-{{ checksum "yarn.lock" }}
+      - run:
+          name: Test project
+          command: yarn test
+  lint:
+    executor:
+      name: default_env
+    environment:
+      LINT_ENV: strict
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - restore_cache:
+          keys:
+            - v1-node_modules-{{ .Branch }}-{{ checksum "yarn.lock" }}
+      - run:
+          name: Lint project
+          command: yarn lint
+
+workflows:
+  export_swagger_content:
+    jobs:
+      - swagger-ui
+      - install
+      - test:
+          requires:
+            - install
+      - lint:
+          requires:
+            - install
